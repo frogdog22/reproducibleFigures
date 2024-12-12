@@ -1,0 +1,266 @@
+---
+title: "Reproducible Figures Assignment Q2"
+format: 
+  html:
+    embed-resources: true
+    html-math-method: katex
+editor: visual
+bibliography: references/Q2_refs.bib
+warning: false 
+---
+
+This file contains the data pipeline for Q2 of the assessment to be swapped with a partner. For full answers to Q1 & Q3 see the separate file 'Reproducible_figures_assignment_full'.
+
+### Introduction
+
+The Palmer penguins dataset was collected across several small islands on the Palmer archipelago in Antarctica by researchers from the Palmer Station long term ecological research program. It includes data from 3 different species of sympatric nesting *Pygoscelis* penguins: Adelie (*P*. *adeliae*), Chinstrap (*P. antarctica*), and Gentoo (*P. papua*). These species winter in different environments, with Adelie on pack ice, Chinstrap offshore in sea ice free waters and Gentoo in open water areas near shore. However in summer all 3 species forage in sea ice free waters due to global warming [@Gorman2014].
+
+The dataset includes a mix of categorical variables, including species, island and clutch completion, as well as some continuous biological variables such as flipper length, body mass and culmen depth. A full list of variables recorded can be seen in the sample of data below:
+
+```{r}
+#| label: dataset-setup
+
+#Use renv::restore() in the console to restore packages
+
+#The here package must be loaded first to use here() to call in other functions
+library(here)
+
+#calling in functions
+source(here("functions","libraries.r")) #functions to run libraries 
+source(here("functions","cleaningData.r")) #functions to clean data
+source(here("functions", "plotting.r")) #functions to plot and save figures
+
+#loading packages - function called from libraries.r
+loadPackages()
+
+#save a safe copy of the raw data - only need to do this once if not done already
+write.csv(penguins_raw, here("data", "penguins_raw.csv"))
+
+#reading the safe copy of data - repeat if needed
+penguins_raw <- read.csv(here("data", "penguins_raw.csv"))
+
+#cleaning the data - function called from cleaningData.r
+#this cleans names, removes empty columns and rows, removes 3 unneded rows and shortens the species names
+penguins_clean <- cleaning(penguins_raw)
+
+#saving a copy of the clean data 
+write.csv(penguins_clean, here("data", "penguins_clean.csv"))
+
+#showing the first 6 columns of data - checks cleaning
+penguins_clean_head <- head(penguins_clean)
+table(penguins_clean_head) #called from plotting.r
+```
+
+### Hypothesis
+
+This analysis will investigate if there is a relationship between the penguin's culmen length and body mass. A larger culmen length could lead to more successful hunting for the penguins, and therefore a higher body mass.
+
+$$
+H_0: No\space relationship\space between\space culmen\space length\space and\space body\space mass
+\\
+H_1: Culmen\space length\space increases\space or\space decreases\space with\space body\space mass
+$$
+
+Culmen length has previously been used to morphologically classify different populations of Gentoo penguins [@Tyler2020]. From this we could assume that culmen length is pecies dependent. Therefore the species will be included as a covariate in the analysis. This gives us a second set of hypotheses:
+
+$$
+H_0:\space No\space relationship\space between\space species\space and\space body\space mass\space
+\\H_1:\space Body\space mass\space differs\space by\space species
+$$
+
+\
+The data was filtered to only include the variables relevant to this analysis:
+
+```{r}
+#| label: culmen-mass-filter
+
+#filter the data
+culmen_data <- penguins_clean %>%
+  subset_columns(c("culmen_length_mm", "body_mass_g", "species")) %>% #filters the data to only include these columns
+  remove_NA() #removes empty rows from the dataset
+
+#check the filtered data - prints the first 6 rows
+culmen_data_head <- head(culmen_data)
+table(culmen_data_head)
+```
+
+```{r}
+#| label: fig-investigatory-plot
+#| output: false
+ 
+
+#determines the colours for each penguin species - keeps it consistent throughout the analysis. These colours are colour blind friendly.
+penguinColours <- c("Adelie" = "darkorange",
+                    "Chinstrap" = "purple",
+                    "Gentoo" = "cyan4")
+
+
+#plots culmen length against body mass, function called from plotting.r
+initial_plot <- scatter_plot(dataSet = culmen_data,
+                            x_column = culmen_length_mm,
+                            y_column = body_mass_g,
+                            x_lab = "Culmen Length (mm)",
+                            y_lab = "Body Mass (g)",
+                            colourScheme = penguinColours)
+
+
+#saves the plot to the 'figures' folder. Function called from plotting.r
+save_plot_png(initial_plot,
+              here("figures", "initial_scatter_plot.png"), 
+              size = 15, res = 600, scaling=1)
+
+
+```
+
+```{r}
+#| label: fig-investigatory-plot-output
+#| fig-cap: "Scatter plot of penguin body mass and culmen length. All data from the palmerpenguins package."
+
+#outputs the plot 
+initial_plot
+```
+
+### Stats Method
+
+The association between culmen length and body mass was tested using a linear model. Species was added as a covariate to the linear model. As a result, two linear models were run, one containing the interaction term and one without.
+
+First, the model without the interaction term was generated. The equation for this model is:
+
+$$
+body\space mass\space =\space constant\space +\space culmen\space length\space +\space species
+$$
+
+```{r}
+#| label: no-interaction-model
+
+#Forms the linear model
+penguinNoInteractModel <- lm(body_mass_g ~ culmen_length_mm + species, 
+                             data = culmen_data)
+
+#saves the output of the linear model to culmen_data to be plotted
+culmen_data$fit0 <- predict(penguinNoInteractModel)
+```
+
+Second, another linear model was generated, which includes the interaction term. The equation for this model is:
+
+$$
+body\space mass\space =\space constant\space +\space culmen\space length\space +\space species\space +\space culmen\space length\space *\space species
+$$
+
+```{r}
+#|label: interaction-model
+
+#forms the linear model
+penguinFullModel <- lm(body_mass_g ~ culmen_length_mm * species, 
+                          data = culmen_data)
+
+#saves the output of the linear model to culmen_data to be plotted
+culmen_data$fit1 <- predict(penguinFullModel)
+
+```
+
+The data analysis will be carried out in a two step process: first the two models will be compared to determine if the interaction term is statistically significant. This will show if the effect of culmen length on body mass depends on species.\
+
+#####  Checking suitability of model
+
+In order for this linear model to be valid, several assumptions must be met. The first is that it must be normally distributed. This can be assessed visually through a Q-Q plot
+
+```{r}
+#| label: fig-normality
+#| fig-cap: Q-Q plot to show the distribution of data
+
+#forms a Q-Q plot of the residuals. Function called from plotting.r
+qqplot(penguinFullModel)
+
+```
+
+As most points fall along the reference line, we can assume the data is normally distributed. There is no evidence of a positive or negative skew to the data.
+
+Furthermore, a linear model also assumes the variance of Y values is the same for all values of X. This can be assessed visually through a plot of the residuals.
+
+```{r}
+#| label: fig-residuals-variance 
+#| fig-cap: Variance of residuals plot
+
+#forms a plot of the residuals. Function called from plotting.r
+residualPlot(penguinFullModel) 
+
+```
+
+The plot has a roughly symmetrical cloud of points above and below the horizontal reference line. At each value of x there is an equal variance of points above and below the line. Therefore, the assumption of equal variance is met and the data analysis can proceed.
+
+### Results
+
+To assess which of the two linear models was a better fit to the data, the significance of the interaction term was determined through an ANOVA.
+
+```{r}
+#| label: interaction-term-ANOVA
+
+anova(penguinNoInteractModel, penguinFullModel)
+
+```
+
+The ANOVA results show a statistically significant difference betweent the two models, p = 0.01549. This means the interaction term is statistically significant and the effect of culmen length on body mass depends on the penguin species. Going forward the data analysis used the second model, including the interaction term.
+
+```{r}
+#| label: analysis-result
+
+anova(penguinFullModel)
+```
+
+The exact p values can be found in the Pr(\>F) column:
+
+```{r}
+#| label: exact-p-values
+
+#lists the values of the Pr(>F) column
+anova(penguinFullModel)$`Pr(>F)`
+```
+
+The F ratio for the variation from culmen length is statistically significant, p =$1.06\times10^{-73}$. Therefore we can reject the null hypothesis that culmen length has no effect on body mass.
+
+Furthermore, the analysis also shows that the F ratio for variation from the penguin species is also statistically significant, p = $1.80\times10^{-81}$. Therefore we can reject the second null hypothesis that species has no effect on body mass.
+
+The results of this analysis are also visualised below:
+
+```{r}
+#| label: fig-analysis
+#| output: false
+
+#produces a scatter plot with regression lines. Function called from plotting.r
+results_plot <- linear_regression_plot(dataSet = culmen_data,
+                       x_column = culmen_length_mm,
+                       y_column = body_mass_g,
+                       x_lab = "Culmen Length (mm)",
+                       y_lab = "Body Mass (g)",
+                       colourScheme = penguinColours,
+                       model = fit1)
+#The 'model' parameter in this function can be changed from fit0 to fit1 to switch between the model containing and excluding the interaction term
+
+#saves the figure as a .png image. Function called from plotting.r
+save_plot_png(results_plot,
+              here("figures", "results_scatter_plot.png"), 
+              size = 15, res = 600, scaling=1)
+```
+
+```{r}
+#| label: fig-analysis-output
+#| fig-cap: "Scatter plot of penguin body mass and culmen length. Regression lines follow Body Mass = constant + culmen length + species + culmen length * species. p = 1.06x10^-81"
+
+#outputs the figure
+results_plot
+```
+
+### Discussion
+
+The results show that the impact of culmen length on body mass is statistically significant. There could be a number of reasons for this, one could be that individuals with a longer culmen have a larger beak, which may enable greater hunting success. Furthermore, the results show that the impact of culmen length on body mass is species dependent, this could be due to different hunting techniques from the different species being affected to different extents by culmen length.
+
+However, the analysis does have some limitations. Firstly, it only looks at 3 variables: culmen length, body mass and species. Whilst from these it appears that body mass increases with increasing culmen length, there could be other confounding variables. Some of these are included in the Palmer Penguins data set and could be investigated in the future, such as the impact of culmen depth and the sex of the penguins.
+
+Future research could also focus on if this relationship is maintained through other penguin species, and other groups of birds. This could determine if the repetition of the pattern across the three species here is through convergent evolution, or is maintained ancestrally.
+
+### Conclusion
+
+This analysis has shown through a linear model that body mass increases with increased culmen length for the 3 penguin species described in this data set, Adelie, Chinstrap and Gentoo. The penguin species also affects both body mass, and impacts the effect of culmen length on body mass.
+
+### References
