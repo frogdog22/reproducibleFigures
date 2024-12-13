@@ -1,0 +1,402 @@
+---
+title: "Reproducible Figures Assignment"
+format: 
+  html:
+    embed-resources: true
+    html-math-method: katex
+editor: visual
+bibliography: references/assignment_refs.bib
+warning: false 
+---
+
+*The following is a template .rmd RMarkdown file for you to use for your homework submission.*
+
+*Please Knit your .rmd to a PDF format or HTML and submit that with no identifiers like your name.*
+
+*To create a PDF, first install tinytex and load the package. Then press the Knit arrow and select "Knit to PDF".*
+
+## QUESTION 01: Data Visualisation for Science Communication
+
+*Create a figure using the Palmer Penguin dataset that is correct but badly communicates the data. **Do not make a boxplot**.*
+
+*Use the following references to guide you:*
+
+-   [*https://www.nature.com/articles/533452a*](https://www.nature.com/articles/533452a){.uri}
+-   [*https://elifesciences.org/articles/16800*](https://elifesciences.org/articles/16800){.uri}
+
+*Note: Focus on visual elements rather than writing misleading text on it.*
+
+### a) Provide your figure here:
+
+```{r}
+#| label: bad-figure-packages
+#| echo: false
+#| output: false
+
+#If only looking at Q2 this does not need to be run - all packages for Q2 are in libraries.R
+library(ggplot2)
+library(janitor)
+library(palmerpenguins)
+```
+
+```{r}
+#| label: bad-figure-code
+#| echo: false
+
+badFigData <- clean_names(penguins_raw)
+ggplot(data = badFigData,
+       aes(x = species, 
+           y = culmen_depth_mm,
+           fill = species)) +
+  geom_violin() +
+  scale_fill_manual(values = c("red", "green", "darkgreen"))+
+  theme(axis.text.y=element_blank()) +
+  annotate("text", 
+           x = 3, 
+           y = 18, 
+           label = "***")
+
+# There is no need to provide the code for your bad figure, just use echo=FALSE so the code is hidden. Make sure your figure is visible after you knit it. 
+
+```
+
+### b) Write about how your design choices mislead the reader about the underlying data (200-300 words).
+
+One of the main issues is the lack of visible scale on the y axis. Without this the figure cannot be used to determine the pattern of the data. It makes it hard to tell the size of the differences between the three penguin species. There is some text present on the graph ‘\*\*\*’. This would usually indicate high statistical significance, however there is no other information about what statistical test, if any, has been run. The figure has no caption that can be used to find out if any statistical analysis has been run, and what the p-value is if so.
+
+The label on the x axis is very unclear. The species names are too long and merge into each other, making it hard to tell which section of the figure refers to which species. Whilst there is also a legend to show which species is which, the colours used in this are not colourblind friendly. It is estimated that 0.5% of women and 8% of men worldwide have a colour-vision deficiency [@Crameri2020]. By using red and green, it will be hard to distinguish between the colours used on the plot, and therefore the species, for a significant proportion of the population.  
+
+Finally, there are no data points on the figure. Hiding this raw data is not good for reproducibility, which relies on open source information and accessible data [@Baker2016].
+
+------------------------------------------------------------------------
+
+## QUESTION 2: Data Pipeline
+
+*Write a data analysis pipeline in your .rmd RMarkdown file. You should be aiming to write a clear explanation of the steps, the figures visible, as well as clear code.*
+
+*Your code should include the steps practiced in the lab session:*
+
+-   *Load the data*
+
+-   *Appropriately clean the data*
+
+-   *Create an Exploratory Figure (**not a boxplot**)*
+
+-   *Save the figure*
+
+-   ***New**: Run a statistical test*
+
+-   ***New**: Create a Results Figure*
+
+-   *Save the figure*
+
+*An exploratory figure shows raw data, such as the distribution of the data. A results figure demonstrates the stats method chosen, and includes the results of the stats test.*
+
+*Between your code, communicate clearly what you are doing and why.*
+
+*Your text should include:*
+
+-   *Introduction*
+
+-   *Hypothesis*
+
+-   *Stats Method*
+
+-   *Results*
+
+-   *Discussion*
+
+-   *Conclusion*
+
+*You will be marked on the following:*
+
+### a) Your code for readability and functionality
+
+### b) Your figures for communication
+
+### c) Your text communication of your analysis
+
+*Below is a template you can use.*
+
+------------------------------------------------------------------------
+
+### Introduction
+
+The Palmer penguins dataset was collected across several small islands on the Palmer archipelago in Antarctica by researchers from the Palmer Station long term ecological research program. It includes data from 3 different species of sympatric nesting *Pygoscelis* penguins: Adelie (*P*. *adeliae*), Chinstrap (*P. antarctica*), and Gentoo (*P. papua*). These species winter in different environments, with Adelie on pack ice, Chinstrap offshore in sea ice free waters and Gentoo in open water areas near shore. However in summer all 3 species forage in sea ice free waters due to global warming [@Gorman2014].
+
+The dataset includes a mix of categorical variables, including species, island and clutch completion, as well as some continuous biological variables such as flipper length, body mass and culmen depth. A full list of variables recorded can be seen in the sample of data below:
+
+```{r}
+#| label: dataset-setup
+
+#Use renv::restore() in the console to restore packages
+
+#The here package must be loaded first to use here() to call in other functions
+library(here)
+
+#calling in functions
+source(here("functions","libraries.r")) #functions to run libraries 
+source(here("functions","cleaningData.r")) #functions to clean data
+source(here("functions", "plotting.r")) #functions to plot and save figures
+
+
+####### NB: In Q3 my partner noticed an error in the above code
+####### where I have put .r instead of .R when calling in the
+####### functions. I have left it as it is to avoid plagerism,
+####### but if this chunk is not working fixing this may solve it 
+
+#loading packages - function called from libraries.r
+loadPackages()
+
+#save a safe copy of the raw data - only need to do this once if not done already
+write.csv(penguins_raw, here("data", "penguins_raw.csv"))
+
+#reading the safe copy of data - repeat if needed
+penguins_raw <- read.csv(here("data", "penguins_raw.csv"))
+
+#cleaning the data - function called from cleaningData.r
+#this cleans names, removes empty columns and rows, removes 3 unneded rows and shortens the species names
+penguins_clean <- cleaning(penguins_raw)
+
+#saving a copy of the clean data 
+write.csv(penguins_clean, here("data", "penguins_clean.csv"))
+
+#showing the first 6 columns of data - checks cleaning
+penguins_clean_head <- head(penguins_clean)
+table(penguins_clean_head) #called from plotting.r
+```
+
+### Hypothesis
+
+This analysis will investigate if there is a relationship between the penguin's culmen length and body mass. A larger culmen length could lead to more successful hunting for the penguins, and therefore a higher body mass.
+
+$$ H_0: No\space relationship\space between\space culmen\space length\space and\space body\space mass \\ 
+H_1: Culmen\space length\space increases\space or\space decreases\space with\space body\space mass $$
+
+Culmen length has previously been used to morphologically classify different populations of Gentoo penguins [@Tyler2020]. From this we could assume that culmen length is pecies dependent. Therefore the species will be included as a covariate in the analysis. This gives us a second set of hypotheses:
+
+$$ H_0:\space No\space relationship\space between\space species\space and\space body\space mass\space \\
+H_1:\space Body\space mass\space differs\space by\space species 
+$$
+
+\
+The data was filtered to only include the variables relevant to this analysis:
+
+```{r}
+#| label: culmen-mass-filter
+
+#filter the data
+culmen_data <- penguins_clean %>%
+  subset_columns(c("culmen_length_mm", "body_mass_g", "species")) %>% #filters the data to only include these columns
+  remove_NA() #removes empty rows from the dataset
+
+#check the filtered data - prints the first 6 rows
+culmen_data_head <- head(culmen_data)
+table(culmen_data_head)
+```
+
+```{r}
+#| label: fig-investigatory-plot
+#| output: false
+ 
+
+#determines the colours for each penguin species - keeps it consistent throughout the analysis. These colours are colour blind friendly.
+penguinColours <- c("Adelie" = "darkorange",
+                    "Chinstrap" = "purple",
+                    "Gentoo" = "cyan4")
+
+
+#plots culmen length against body mass, function called from plotting.r
+initial_plot <- scatter_plot(dataSet = culmen_data,
+                            x_column = culmen_length_mm,
+                            y_column = body_mass_g,
+                            x_lab = "Culmen Length (mm)",
+                            y_lab = "Body Mass (g)",
+                            colourScheme = penguinColours)
+
+
+#saves the plot to the 'figures' folder. Function called from plotting.r
+save_plot_png(initial_plot,
+              here("figures", "initial_scatter_plot.png"), 
+              size = 15, res = 600, scaling=1)
+
+```
+
+```{r}
+#| label: fig-investigatory-plot-output
+#| fig-cap: "Scatter plot of penguin body mass and culmen length. All data from the palmerpenguins package."
+
+#outputs the plot 
+initial_plot
+```
+
+### Stats Method
+
+The association between culmen length and body mass was tested using a linear model. Species was added as a covariate to the linear model. As a result, two linear models were run, one containing the interaction term and one without.
+
+First, the model without the interaction term was generated. The equation for this model is:
+
+$$ body\space mass\space =\space constant\space +\space culmen\space length\space +\space species $$
+
+```{r}
+#| label: no-interaction-model
+
+#Forms the linear model
+penguinNoInteractModel <- lm(body_mass_g ~ culmen_length_mm + species, 
+                             data = culmen_data)
+
+#saves the output of the linear model to culmen_data to be plotted
+culmen_data$fit0 <- predict(penguinNoInteractModel)
+```
+
+Second, another linear model was generated, which includes the interaction term. The equation for this model is:
+
+$$ body\space mass\space =\space constant\space +\space culmen\space length\space +\space species\space +\space culmen\space length\space *\space species $$
+
+```{r}
+#|label: interaction-model
+
+#forms the linear model
+penguinFullModel <- lm(body_mass_g ~ culmen_length_mm * species, 
+                          data = culmen_data)
+
+#saves the output of the linear model to culmen_data to be plotted
+culmen_data$fit1 <- predict(penguinFullModel)
+```
+
+The data analysis will be carried out in a two step process: first the two models will be compared to determine if the interaction term is statistically significant. This will show if the effect of culmen length on body mass depends on species.
+
+##### Checking suitability of model
+
+In order for this linear model to be valid, several assumptions must be met. The first is that it must be normally distributed. This can be assessed visually through a Q-Q plot
+
+```{r}
+#| label: fig-normality
+#| fig-cap: Q-Q plot to show the distribution of data
+
+#forms a Q-Q plot of the residuals. Function called from plotting.r
+qqplot(penguinFullModel)
+```
+
+As most points fall along the reference line, we can assume the data is normally distributed. There is no evidence of a positive or negative skew to the data.
+
+Furthermore, a linear model also assumes the variance of Y values is the same for all values of X. This can be assessed visually through a plot of the residuals.
+
+```{r}
+#| label: fig-residuals-variance 
+#| fig-cap: Variance of residuals plot
+
+#forms a plot of the residuals. Function called from plotting.r
+residualPlot(penguinFullModel) 
+```
+
+The plot has a roughly symmetrical cloud of points above and below the horizontal reference line. At each value of x there is an equal variance of points above and below the line. Therefore, the assumption of equal variance is met and the data analysis can proceed.
+
+### Results
+
+To assess which of the two linear models was a better fit to the data, the significance of the interaction term was determined through an ANOVA.
+
+```{r}
+#| label: interaction-term-ANOVA
+
+anova(penguinNoInteractModel, penguinFullModel)
+```
+
+The ANOVA results show a statistically significant difference betweent the two models, p = 0.01549. This means the interaction term is statistically significant and the effect of culmen length on body mass depends on the penguin species. Going forward the data analysis used the second model, including the interaction term.
+
+```{r}
+#| label: analysis-result  
+
+anova(penguinFullModel)
+```
+
+The exact p values can be found in the Pr(\>F) column:
+
+```{r}
+#| label: exact-p-values
+
+#lists the values of the Pr(>F) column
+anova(penguinFullModel)$`Pr(>F)`
+```
+
+The F ratio for the variation from culmen length is statistically significant, p =$1.06\times10^{-73}$. Therefore we can reject the null hypothesis that culmen length has no effect on body mass.
+
+Furthermore, the analysis also shows that the F ratio for variation from the penguin species is also statistically significant, p = $1.80\times10^{-81}$. Therefore we can reject the second null hypothesis that species has no effect on body mass.
+
+The results of this analysis are also visualised below:
+
+```{r}
+#| label: fig-analysis
+#| output: false
+
+#produces a scatter plot with regression lines. Function called from plotting.r
+results_plot <- linear_regression_plot(dataSet = culmen_data,
+                       x_column = culmen_length_mm,
+                       y_column = body_mass_g,
+                       x_lab = "Culmen Length (mm)",
+                       y_lab = "Body Mass (g)",
+                       colourScheme = penguinColours,
+                       model = fit1)
+#The 'model' parameter in this function can be changed from fit0 to fit1 to switch between the model containing and excluding the interaction term
+
+#saves the figure as a .png image. Function called from plotting.r
+save_plot_png(results_plot,
+              here("figures", "results_scatter_plot.png"), 
+              size = 15, res = 600, scaling=1)
+```
+
+```{r}
+#| label: fig-analysis-output
+#| fig-cap: "Scatter plot of penguin body mass and culmen length. Regression lines follow Body Mass = constant + culmen length + species + culmen length * species. p = 1.06x10^-81"
+
+#outputs the figure
+results_plot
+```
+
+### Discussion
+
+The results show that the impact of culmen length on body mass is statistically significant. There could be a number of reasons for this, one could be that individuals with a longer culmen have a larger beak, which may enable greater hunting success. Furthermore, the results show that the impact of culmen length on body mass is species dependent, this could be due to different hunting techniques from the different species being affected to different extents by culmen length.
+
+However, the analysis does have some limitations. Firstly, it only looks at 3 variables: culmen length, body mass and species. Whilst from these it appears that body mass increases with increasing culmen length, there could be other confounding variables. Some of these are included in the Palmer Penguins data set and could be investigated in the future, such as the impact of culmen depth and the sex of the penguins.
+
+Future research could also focus on if this relationship is maintained through other penguin species, and other groups of birds. This could determine if the repetition of the pattern across the three species here is through convergent evolution, or is maintained ancestrally.
+
+### Conclusion
+
+This analysis has shown through a linear model that body mass increases with increased culmen length for the 3 penguin species described in this data set, Adelie, Chinstrap and Gentoo. The penguin species also affects both body mass, and impacts the effect of culmen length on body mass.
+
+## QUESTION 3: Open Science
+
+### a) GitHub
+
+*Upload your RProject you created for **Question 2** and any files and subfolders used to GitHub. Do not include any identifiers such as your name. Make sure your GitHub repo is public.*
+
+*GitHub link:* <https://github.com/frogdog22/reproducibleFigures.git>
+
+*You will be marked on your repo organisation and readability.*
+
+### b) Share your repo with a partner, download, and try to run their data pipeline.
+
+*Partner's GitHub link:* <https://github.com/zhouyu-jilu/ReproducibleFigures.git>
+
+*You **must** provide this so I can verify there is no plagiarism between you and your partner.*
+
+### c) Reflect on your experience running their code. (300-500 words)
+
+The element of my partner’s code that helped to understand and run their data pipeline the most were the comments within their code chunks. They explained not just what the steps they were taking were, but why they were taking them. The organisation of their code within the .Rmd file also helped: the data pipeline followed a logical order, and some of the chunks were labelled, helping to follow their thought process. Furthermore, their variables and functions were logically labelled, making it easy to understand what they were aiming to do.
+
+The majority of their code ran on the first try and only two things that needed fixing. First, whilst renv::install() installed most of the packages needed, I had to later install the Hmisc package when prompted to load the summary plot. Secondly, they stored their results figure as interaction_plot, but then never outputted the figure itself. This was fixed by adding one line, interaction_plot, to display the figure. Making their code easy to run and easy to follow helps reproducibility in science by enabling other researchers to see the raw data, the data pipeline itself and the thought process behind it.
+
+One suggestion to make their data more reproducible and understandable would be to utilise functions more, as well as storing them clearly within separate scripts. Whilst they use functions from cleaning.R to clean their data, there is a plotting.R file in their folder that is not utilised. No functions are used to plot their data, and the plotting.R script isn’t well organised, not containing any functions or code used in their .Rmd file. Improving the organisation of this file would would make their thought process more clear, and using functions can help to avoid repeating similar bits of code. Furthermore, adding a README.md file to their github could make the project more reproducible. This could introduce the project and give context to what they are investigating and why to other researchers, which isn’t explained in much detail within their project. This file could also give instructions on downloading and using the code for the first time. Preparing materials for sharing at this active phase of a project is easier than trying to adapt and reconstruct earlier work, data organisation is key for this [@McKiernan2016].
+
+It would be relatively easy to alter my partners figures using their code. They annotate their code throughout their data pipeline, making it easy to identify the code for their figures. However, it would be easier to alter their figures if the code to plot them was stored as functions within a separate script. This would make it easier to find the figures, as they would be more clearly signposted within their own script, as well as making it easier to alter them. For example, to repeat using a different dataset would only require changing the dataset input when running the function, instead of having to find every mention of the dataset within their script.
+
+### d) Reflect on your own code based on your experience with your partner's code and their review of yours. (300-500 words)
+
+One piece of feedback my partner gave was that it may be easier for a less experienced coder to follow and use my code if it wasn’t split into different function files. I don’t fully agree with this, as the code in the main .qmd file calls in these functions and explains which file each one has come from. Without the separate function files my .qmd file would have been long and with repetitive sections, so I believe the separate files were necessary. One solution could be to include a more comprehensive README.md file, which could explain the organisation of my code in more detail than I currently have done to ensure it is clear how it is laid out.
+
+Another piece of feedback they gave was that they had difficulties with my code as renv didn’t work. This stopped it from being fully reproducible, as they had to install the packages manually and as a result had newer versions of the packages than the ones I had used.  We were not sure if this was due to an error with my code, or an issue with their computer, as theirs had broken and they had to run code in the cloud. In the future I would try to prevent this from happening by learning more about how renv functions so I can check if it set up correctly more thoroughly.
+
+This exercise taught me that writing code for other people can be difficult at times with having to set up code that will run on multiple different machines. For example, renv must work to ensure the correct versions of packages are used, and here() to set the working directory correctly. However, it also taught me the value that working with other people can have, as having somebody else download and see your code, as my partner did in this exercise, can point out errors that you missed. For example, my partner was able to flag that I had incorrectly put down file names as .r instead of .R when calling in my functions, which had worked on my computer but not theirs.
+
+### References
